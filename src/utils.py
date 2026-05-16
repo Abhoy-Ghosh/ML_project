@@ -10,6 +10,7 @@ from src.exception import CustomException
 from src.logger import logging
 
 from sklearn.metrics import r2_score
+from sklearn.model_selection import GridSearchCV
 
 from dataclasses import dataclass
 
@@ -27,34 +28,41 @@ def save_object(file_path, obj):
         raise CustomException(e, sys)
     
 
-def evaluate_models(X_train, y_train, X_test, y_test, models):
-
-    report = {}
+def evaluate_models(X_train, y_train, X_test, y_test, models, param):
 
     try:
 
-        for i in range(len(list(models.values()))):
+        report = {}
+        trained_models = {}
 
-            model = list(models.values())[i]
-            model_name = list(models.keys())[i]
+        for model_name, model in models.items():
 
-            # Train model
-            model.fit(X_train, y_train)
+            model_param = param[model_name]
+
+            gs = GridSearchCV(
+                estimator=model,
+                param_grid=model_param,
+                cv=3
+            )
+
+            gs.fit(X_train, y_train)
+
+            # Best trained model
+            best_model = gs.best_estimator_
 
             # Predictions
-            y_train_pred = model.predict(X_train)
-            y_test_pred = model.predict(X_test)
+            y_test_pred = best_model.predict(X_test)
 
-            # Scores
-            train_model_score = r2_score(y_train, y_train_pred)
+            # Score
             test_model_score = r2_score(y_test, y_test_pred)
 
-            # Store result
+            # Store score
             report[model_name] = test_model_score
 
-        return report
+            # Store trained model
+            trained_models[model_name] = best_model
+
+        return report, trained_models
 
     except Exception as e:
         raise CustomException(e, sys)
- 
-
